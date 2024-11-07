@@ -11,6 +11,7 @@ interface LetterboxdSettings {
 	dateFormat: string;
 	path: string;
 	sort: string;
+	simple: boolean;
 }
 
 /**
@@ -99,7 +100,8 @@ const DEFAULT_SETTINGS: LetterboxdSettings = {
 	username: '',
 	dateFormat: getDailyNoteSettings().format ?? '',
 	path: 'Letterboxd Diary',
-	sort: 'Old'
+	sort: 'Old',
+	simple: true
 }
 
 const decodeHtmlEntities = (text: string) => {
@@ -146,14 +148,28 @@ export default class LetterboxdPlugin extends Plugin {
 								return this.settings.sort === 'Old' ? dateA - dateB : dateB - dateA;
 							})
 							.map((item: RSSEntry) => {
+								let description = document.createElement('div');
+								description.innerHTML = item.description;
+								const imgElement = description.querySelector('img');
+								let img = imgElement ? imgElement.src : null;
+								let reviewText: string | null = Array.from(description.querySelectorAll('p'))
+									.map(p => p.textContent)
+									.join('\r > \r > ');
+								if (reviewText.contains('Watched on')) reviewText = null;
 								const filmTitle = decodeHtmlEntities(item['letterboxd:filmTitle']);
 								const watchedDate = this.settings.dateFormat
 									? moment(item['letterboxd:watchedDate']).format(this.settings.dateFormat)
 									: item['letterboxd:watchedDate'];
 
-								return item['letterboxd:memberRating'] !== undefined
-									? `- Gave [${item['letterboxd:memberRating']} stars to ${filmTitle}](${item['link']}) on [[${watchedDate}]]`
-									: `- Watched [${filmTitle}](${item['link']}) on [[${watchedDate}]]`;
+								if (this.settings.simple) {
+									return item['letterboxd:memberRating'] !== undefined
+										? `- Gave [${item['letterboxd:memberRating']} stars to ${filmTitle}](${item['link']}) on [[${watchedDate}]]`
+										: `- Watched [${filmTitle}](${item['link']}) on [[${watchedDate}]]`;
+								} else {
+									return `> [!review] [${filmTitle}](${item['link']}) - [[${watchedDate}]] \r> ${img ? `![${filmTitle}|200](${img}) \r> ${item['letterboxd:memberRating'] ? `**${item['letterboxd:memberRating']} stars**\r>` : ''}` : ''} ${reviewText ? reviewText : ''} \n`;
+								}
+
+
 							})
 						const diaryFile = this.app.vault.getFileByPath(filename)
 						if (diaryFile === null) {
@@ -258,6 +274,17 @@ class LetterboxdSettingTab extends PluginSettingTab {
 				component.setValue(this.plugin.settings.sort)
 				component.onChange(async (value) => {
 					this.plugin.settings.sort = value
+					await this.plugin.saveSettings()
+				})
+			})
+
+		new Setting(containerEl)
+			.setName('Simple')
+			.setDesc('Select whether to use simpler formatting.')
+			.addToggle((component) => {
+				component.setValue(this.plugin.settings.simple)
+				component.onChange(async (value) => {
+					this.plugin.settings.simple = value
 					await this.plugin.saveSettings()
 				})
 			})
