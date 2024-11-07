@@ -11,7 +11,7 @@ interface LetterboxdSettings {
 	dateFormat: string;
 	path: string;
 	sort: string;
-	simple: boolean;
+	callout: boolean;
 }
 
 /**
@@ -101,7 +101,7 @@ const DEFAULT_SETTINGS: LetterboxdSettings = {
 	dateFormat: getDailyNoteSettings().format ?? '',
 	path: 'Letterboxd Diary',
 	sort: 'Old',
-	simple: true
+	callout: false,
 }
 
 const decodeHtmlEntities = (text: string) => {
@@ -160,16 +160,14 @@ export default class LetterboxdPlugin extends Plugin {
 								const watchedDate = this.settings.dateFormat
 									? moment(item['letterboxd:watchedDate']).format(this.settings.dateFormat)
 									: item['letterboxd:watchedDate'];
-
-								if (this.settings.simple) {
-									return item['letterboxd:memberRating'] !== undefined
-										? `- Gave [${item['letterboxd:memberRating']} stars to ${filmTitle}](${item['link']}) on [[${watchedDate}]]`
-										: `- Watched [${filmTitle}](${item['link']}) on [[${watchedDate}]]`;
+								let stars = item['letterboxd:memberRating'] !== undefined ? '★'.repeat(Math.floor(item['letterboxd:memberRating'])) + (item['letterboxd:memberRating'] % 1 ? '½' : '') : undefined;
+								if (this.settings.callout) {
+									return `> [!letterboxd]+ ${item['letterboxd:memberRating'] !== undefined || reviewText ? 'Review: ' : 'Watched: '} [${filmTitle}](${item['link']}) ${stars ? stars : ''} - [[${watchedDate}]] \r> ${reviewText ? img ? `![${filmTitle}|200](${img}) \r> ${reviewText}` : '' + reviewText : ''} \n`;
 								} else {
-									return `> [!review] [${filmTitle}](${item['link']}) - [[${watchedDate}]] \r> ${img ? `![${filmTitle}|200](${img}) \r> ${item['letterboxd:memberRating'] ? `**${item['letterboxd:memberRating']} stars**\r>` : ''}` : ''} ${reviewText ? reviewText : ''} \n`;
+									return item['letterboxd:memberRating'] !== undefined
+										? `- Gave [${stars} to ${filmTitle}](${item['link']}) on [[${watchedDate}]]`
+										: `- Watched [${filmTitle}](${item['link']}) on [[${watchedDate}]]`;
 								}
-
-
 							})
 						const diaryFile = this.app.vault.getFileByPath(filename)
 						if (diaryFile === null) {
@@ -279,12 +277,12 @@ class LetterboxdSettingTab extends PluginSettingTab {
 			})
 
 		new Setting(containerEl)
-			.setName('Simple')
-			.setDesc('Select whether to use simpler formatting.')
+			.setName('Callout Mode')
+			.setDesc('Selecting this will break each review into its own callout block with custom CSS.')
 			.addToggle((component) => {
-				component.setValue(this.plugin.settings.simple)
+				component.setValue(this.plugin.settings.callout)
 				component.onChange(async (value) => {
-					this.plugin.settings.simple = value
+					this.plugin.settings.callout = value
 					await this.plugin.saveSettings()
 				})
 			})
