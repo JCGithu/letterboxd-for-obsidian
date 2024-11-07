@@ -72,7 +72,7 @@ class FileSelect extends FuzzySuggestModal<TAbstractFile | string> {
 
 		this.containerEl.addEventListener('keyup', e => {
 			if (e.key !== 'Enter') return;
-			if (!this.resultContainerEl.querySelector('.suggestion-item.is-selected')) {
+			if (!this.resultContainerEl.querySelector('.suggestion-item.is-selected') || e.getModifierState('Shift')) {
 				this.plugin.settings.path = this.inputEl.value
 				this.plugin.saveSettings();
 				this.textBox.setValue(this.plugin.settings.path);
@@ -270,7 +270,7 @@ class LetterboxdSettingTab extends PluginSettingTab {
 			.setDesc('Select the order to list your diary entries.')
 			.addDropdown((component) => {
 				component.addOption('Old', 'Oldest First');
-				component.addOption('Newest First', 'Newest First');
+				component.addOption('New', 'Newest First');
 				component.setValue(this.plugin.settings.sort)
 				component.onChange(async (value) => {
 					this.plugin.settings.sort = value
